@@ -32,7 +32,7 @@
             </v-card>
 
             <div>
-              <v-data-table :headers="headers" :items="purchasesArray" :search="search" class="elevation-1" fixed-header height="300px">
+              <v-data-table :headers="headers" :items="itemsArray" :search="search" class="elevation-1" fixed-header height="300px">
                 <v-divider inset></v-divider>
 
                 <template v-slot:item.id="{ item }">
@@ -40,17 +40,18 @@
                 </template>
 
                 <template v-slot:item.purchaseDate="{ item }">
-                  <v-text-field v-model="editedItem.purchaseDate" :hide-details="true" dense single-line v-if="item.id === editedItem.id" >
+                  <v-text-field v-model="formattedPurchaseDate" :hide-details="true" dense single-line v-if="item.id === editedItem.id" >
                     <template v-slot:append-outer>
                       <date-picker v-model="editedItem.purchaseDate" />
                     </template>
                   </v-text-field>
-                  <span v-else>{{item.purchaseDate}}</span>
+                  <span v-else>{{formatDate(item.purchaseDate)}}</span>
                 </template>
 
                 <template v-slot:item.vendorId="{ item }">
-                  <v-text-field v-model="editedItem.vendorId" :hide-details="true" dense single-line v-if="item.id === editedItem.id" ></v-text-field>
-                  <span v-else>{{item.vendorId}}</span>
+                  <v-select v-model="item" :items="getVendorNames" item-text="vendorName" item-value="vendorId" dense single-line  hide-details  @change="onVendorChange(item)"
+                  v-if="item.id === editedItem.id"></v-select>
+                  <span v-else>{{ item.vendorName }}</span>
                 </template>
 
                 <template v-slot:item.actions="{ item }">
@@ -84,12 +85,7 @@
                 <template v-slot:no-data>
                   <v-btn color="primary" @click="initialize">Reset</v-btn>
                 </template>
-
-
-              </v-data-table>
-
-
-              
+              </v-data-table>              
             </div>
 
           <v-card>
@@ -163,7 +159,8 @@ background-color: white;
 
 <script>
 
-import purchaseService from '../services/PurchaseService'
+import PurchaseService from '../services/PurchaseService'
+import VendorService from '@/services/VendorService';
 import DatePicker from "../components/DatePicker.vue";
 import moment from 'moment';
 import PurchaseDetails from './PurchaseDetails.vue';
@@ -200,7 +197,7 @@ export default {
     },
     { text: 'Actions', value: 'actions', sortable: false , width: "100px"},
   ],
-  purchasesArray: [],
+  itemsArray: [],
   editedItem: {
     id: 0,
     purchaseDate: '',
@@ -216,31 +213,68 @@ export default {
   oldItem:{},
   isEdited: false,
   fromDate:moment().format('yyyy-MM-DD'),
-  toDate:moment().format('yyyy-MM-DD')
+  toDate:moment().format('yyyy-MM-DD'),
+  vendors:[],
+  vendorList:[]
 }),
-created () {
-  this.initialize();
+async created () {
+  await this.initialize();
 },
 async mounted(){
-},
-methods: {
-  closeDialog() {
-      // Close the dialog
-      this.showDialog = false;
-    },
-  async initialize () {
-    try {
-      var res = await purchaseService.GetAllPurchases();
-      this.purchasesArray = JSON.parse(JSON.stringify(res));
-    } catch (error) {
-      this.errorMessage = error.message;
-      this.showError = true;
-    }
 
+},
+computed: {
+  formattedPurchaseDate() {
+    return moment(this.editedItem.purchaseDate).format('YYYY-MM-DD');
+  },
+  getVendorNames() {
+      return this.vendorList.map(res => {
+        return {
+          vendorId : res.id,
+          vendorName: res.vendor_name
+        }
+      });
+  }
+},
+methods: 
+{
+  onVendorChange(vendorId) {
+  var foundVendor = this.vendorList.filter((vendor)=>{
+    return vendor.id == vendorId
+  })
+  this.editedItem.vendorId = vendorId;
+  this.editedItem.vendorName = foundVendor ? foundVendor[0].vendor_name : 'No Vendor';
+  },
+  formatDate(dateString) {
+    return moment(dateString).format('YYYY-MM-DD');
+  },
+  closeDialog() {
+      this.showDialog = false;
+  },
+  async initialize () {
+      await PurchaseService.GetAllPurchasesWithVendorNames().then(res => {
+        console.log("Response from GetAllPurchasesWithVendorNames..");
+        console.log(res);
+        this.itemsArray = JSON.parse(JSON.stringify(res));
+      },err => {
+        this.errorMessage = err.message;
+        this.showError = true;
+      });
+
+      await VendorService.GetAllVendors().then(res => {
+        console.log("Response from VendorService.GetAllVendors..");
+        console.log(res);
+        if (res && Array.isArray(res)) {
+      this.vendorList = res;
+    } else {
+      console.error('Invalid response from VendorService.GetAllVendors():', res);
+    }      });
   },
   editItem(item) {
     this.oldItem = item;
     this.editedItem = JSON.parse(JSON.stringify(item));
+    console.log("Editing item..");
+    console.log(this.editedItem);
     this.isEdited = true;
   },
   showItem(item) {
@@ -249,53 +283,59 @@ methods: {
     this.shownItem = {};
     this.shownItem = item;
   },
-  deleteItem(item) {
-    const index = this.purchasesArray.indexOf(item);
-    confirm('Are you sure you want to delete this item?') && this.purchasesArray.splice(index, 1);
+  async deleteItem(item) {
+    const index = this.itemsArray.indexOf(item);
+    if(confirm('Are you sure you want to delete this item?')){
+      await PurchaseService.DeletePurchase(item).then(response=> {
+        this.itemsArray.splice(index, 1);
+      })
+    }  
   },
   resetDefaultItem(){
     this.defaultItem = {};
-    this.defaultItem.purchaseDate = moment().format('yyyy-MM-DD');
-    this.$refs["firstText"].focus();
+    this.$refs["vendorName"].focus();
   },
-  pushNew(){
+  selectRate(){
+    this.$refs["vendorName"].focus();
+  },
+  async pushNew(){
     this.isEdited = false;
-    if(this.purchasesArray.length > 0)
-    {
-      this.max_id = 0;
-      this.purchasesArray.forEach(purchase => {
-        if(purchase.id > this.max_id) this.max_id = purchase.id;
-      });
-      this.defaultItem.id = this.max_id + 1;
-    }
-    else
-      this.defaultItem.id = 1;
-    this.addNew();
-    this.isEdited = true;
-    this.save();
-    this.resetDefaultItem();
+    await this.addNew().then(response=> {
+      this.resetDefaultItem();
+      this.$refs["itemName"].focus();   
+    }); 
   },
-  addNew() {
+  async addNew() {
     if(this.isEdited) return;
     console.log("Adding new item");
-    this.purchasesArray.unshift(JSON.parse(JSON.stringify(this.defaultItem)));
-    this.editItem(this.defaultItem);
+    await PurchaseService.AddPurchase(this.defaultItem).then(response => {
+      this.itemsArray.unshift(JSON.parse(JSON.stringify(response)));
+      this.editItem(response);
+      this.isEdited = false;
+    },error=> {
+      
+    })
   },
-  save () {
+  async save () {
     if(!this.isEdited) return;
 
     if(this.editedItem.id == -1 || this.editedItem.id == undefined)
     {
-      Object.assign(this.purchasesArray[0],this.editedItem);
-      if(this.purchasesArray.length > 1)
-        this.purchasesArray[0].id = this.purchasesArray[1].id + 1;
+      Object.assign(this.itemsArray[0],this.editedItem);
+      if(this.itemsArray.length > 1)
+        this.itemsArray[0].id = this.itemsArray[1].id + 1;
     }
     else
     {
-      var index = this.purchasesArray.indexOf(this.oldItem);
+      var index = this.itemsArray.indexOf(this.oldItem);
       if(index != -1)
-        Object.assign(this.purchasesArray[index],this.editedItem);
+        Object.assign(this.itemsArray[index],this.editedItem);
     }
+
+    await PurchaseService.SavePurchase(this.editedItem).then(response => {
+    },error=> {
+      console.log(error);
+    });
 
     this.isEdited = false;
     this.close()
@@ -303,17 +343,8 @@ methods: {
   close () {
   this.editedItem = {};
   this.isEdited = false;
-  },
-  async findPurchases(){
-    try {
-      var res = await purchaseService.FindPurchases(this.fromDate,this.toDate);
-      this.purchasesArray = JSON.parse(JSON.stringify(res));
-    } catch (error) {
-      this.errorMessage = error.message;
-      this.showError = true;
-    }
   }
-  }
+}  
   
 }
 </script>

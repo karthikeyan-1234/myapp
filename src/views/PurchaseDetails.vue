@@ -30,13 +30,15 @@
                 <v-data-table :headers="headers" :loading="loadTable" loading-text="Data loading.." :items="purchasesArray" :search="search" class="elevation-1" fixed-header height="300px">
                     <v-divider inset></v-divider>
 
-                    <template v-slot:item.amount="{ item }"> <span>{{item.qty * item.rate}}</span> </template>
-
-                    <template v-slot:item.item_name="{ item }">
-                        <v-text-field v-model="editedItem.item_name" :hide-details="true" dense single-line v-if="item.id === editedItem.id" ></v-text-field>
-                        <span v-else>{{item.item_name}}</span>
+                    <template v-slot:item.id="{ item }">
+                        <span>{{item.id}}</span>
                     </template>
 
+                    <template v-slot:item.purchase_id="{ item }">
+                        <span>{{item.purchase_id}}</span>
+                    </template>
+
+                    <template v-slot:item.amount="{ item }"> <span>{{item.qty * item.rate}}</span> </template>
 
                     <template v-slot:item.actions="{ item }">
                         <div v-if="item.id === editedItem.id">
@@ -61,7 +63,7 @@
             </div>
 
             <v-card>
-                <v-btn color="success" style="margin-left: 5px;margin-bottom: 5px; margin-top: 5px;">Save Changes</v-btn>
+                <v-btn color="success" style="margin-left: 5px;margin-bottom: 5px; margin-top: 5px;" @click="LoadData()">Save Changes</v-btn>
             </v-card>
         </v-card>
     </div>
@@ -88,7 +90,7 @@ background-color: white;
 
 <script>
 
-import purchaseService from '../services/PurchaseService'
+import purchaseDetailService from '../services/PurchaseDetailService'
 import moment from 'moment';
 
 export default {
@@ -151,23 +153,29 @@ export default {
   }),
   components: {
   },
-  created: async function(){   
-    console.log("Created..!!");
-    console.log(this.purchaseinfo.id);
-
-    var res = await purchaseService.GetPurchaseDetails(this.purchaseinfo.id);
-    this.purchasesArray = JSON.parse(JSON.stringify(res));
-    this.loadTable = false;
-    this.$refs["firstText"].focus();
+  async created(){   
+  },
+  mounted(){
+    console.log("Mounted hook...");
   },
   methods:{
-    selectElement(ref){
+
+  async LoadData(){
+    await purchaseDetailService.GetPurchaseDetailById(this.purchaseinfo.id).then(res => {
+      this.purchasesArray = res;
+      this.loadTable = false;
+      this.$refs["firstText"].focus();
+      console.log("Purchases Array...");
+      console.log(this.purchasesArray);
+    });
+  },
+  selectElement(ref){
         this.$refs[ref].focus();
-    },
-    closeDialog(){
+  },
+  closeDialog(){
         this.$emit('close');
-    },
-    editItem(item) {
+  },
+  editItem(item) {
     this.oldItem = item;
     this.editedItem = JSON.parse(JSON.stringify(item));
     this.isEdited = true;
@@ -227,7 +235,7 @@ export default {
   close () {
   this.editedItem = {};
   this.isEdited = false;
-  },
+  }
   }
 }
 </script>

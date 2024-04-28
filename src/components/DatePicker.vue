@@ -7,6 +7,8 @@
     </v-menu>
   </template>
   <script>
+  import moment from 'moment';
+
   export default {
     props: {
       value: {
@@ -22,11 +24,11 @@
     computed: {
       picker: {
         get() {
-          return this.value;
+          return moment(this.value).format('yyyy-MM-DD');
         },
         set(val) {
           this.menu = false;
-          this.$emit("input", val);
+          this.$emit("input", moment(val).format('yyyy-MM-DD'));
         },
       },
     },

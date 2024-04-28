@@ -7,19 +7,13 @@ constructor(){
 }
 
 async GetAllVendors() {
-  console.log("Inside GetAllVendors service function..");
   return await axios.get('https://localhost:7195/api/Vendor/GetAllVendors').then(response => {
-    console.log(response);
     return response.data;
   })
 
 }
 
 async SaveVendor(item){
-
-  console.log("Saving vendor in service..");
-  console.log(item);
-
   return await axios.put("https://localhost:7195/api/Vendor/UpdateVendor",item).then(response => {
     return response.data;
   })
@@ -28,9 +22,6 @@ async SaveVendor(item){
 
 async AddVendor(item)
 {
-  console.log("Adding vendor in service..");
-  console.log(item);
-
   return await axios.post("https://localhost:7195/api/Vendor/AddNewVendor",item).then(response => {
     return response.data;
   },error => {
