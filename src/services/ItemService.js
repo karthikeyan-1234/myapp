@@ -7,9 +7,9 @@ constructor(){
 }
 
 async GetAllItems() {
-    return await axios.get('https://localhost:7195/api/item/GetAllItems').then(response => {
-      return response.data;
-    })
+  return await axios.get('https://localhost:7195/api/item/GetAllItemsAsync').then(response => {
+    return response.data;
+  })
 
   }
 
@@ -50,19 +50,11 @@ async SaveItems(itemsArray){
 }
 
 async GetItemDetails(id){
-  // Simulate fetching data from an API
-  return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        // Dummy data for demonstration
-        const items = [
-          { id: 1, item_name: 'item1', rate: 230.10 },
-          { id: 2, item_name: 'item2', rate: 521.10 },
-          { id: 3, item_name: 'item3', rate: 324.20 }, 
-          { id: 4, item_name: 'item4', rate: 821.10 },
-        ];
-        resolve(items);
-      }, 1000); // Simulate delay of 1 second
-    });
+  return await axios.get(`https://localhost:7195/api/item/GetByItemId?id=${id}`).then(response => {
+    return response.data;
+  },error => {
+    console.log(error);
+  })
 }
 
 };

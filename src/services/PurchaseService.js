@@ -24,17 +24,15 @@ async SavePurchase(item){
   return await axios.put("https://localhost:7195/api/Purchase/UpdatePurchase",item).then(response => {
     return response.data;
   })
-
 }
 
 async AddPurchase(item)
 {
   return await axios.post("https://localhost:7195/api/Purchase/AddNewPurchase",item).then(response => {
     return response.data;
-  },error => {
-    console.log(error);
   })
 }
+
 
 async DeletePurchase(item)
 {

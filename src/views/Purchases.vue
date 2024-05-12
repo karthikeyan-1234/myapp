@@ -268,7 +268,10 @@ methods:
       this.vendorList = res;
     } else {
       console.error('Invalid response from VendorService.GetAllVendors():', res);
-    }      });
+    }      },err => {
+      this.errorMessage = err.message;
+      this.showError = true;
+    });
   },
   editItem(item) {
     this.oldItem = item;
@@ -312,8 +315,10 @@ methods:
       this.itemsArray.unshift(JSON.parse(JSON.stringify(response)));
       this.editItem(response);
       this.isEdited = false;
-    },error=> {
-      
+    },err=> {
+      console.log(err);
+      this.errorMessage = err.message + " - " + err.response.data;
+      this.showError = true;
     })
   },
   async save () {

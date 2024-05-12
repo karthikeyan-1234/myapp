@@ -10,7 +10,6 @@ class PurchaseDetailService{
 
     async GetPurchaseDetailById(id){
         return await axios.get(`${this.baseUrl}GetPurchaseDetailsById?Id=${id}`).then(response =>{
-            console.log(response.data);
             return response.data;
         })
     }
@@ -19,17 +18,13 @@ class PurchaseDetailService{
     {
       return await axios.post(`${this.baseUrl}AddNewPurchaseDetail`,item).then(response => {
         return response.data;
-      },error => {
-        console.log(error);
       })
     }
 
     async DeletePurchaseDetail(item)
     {
-        return await axios.delete(`${this.baseUrl}DeletePurchaseDetail=${item.id}`).then(response => {
+        return await axios.delete(`${this.baseUrl}DeletePurchaseDetail?Id=${item.id}`).then(response => {
             return response.data;
-        },error => {
-            console.log(error);
         })
     }
 
@@ -38,7 +33,7 @@ class PurchaseDetailService{
           return response.data;
         })
       
-      }
+    }
     
 }
 

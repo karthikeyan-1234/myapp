@@ -1,5 +1,6 @@
 <template>
     <div id="app">
+      <v-alert v-model="showError" border="top" color="red" dense dismissible elevation="13" outlined prominent shaped text type="error"> {{ errorMessage }} </v-alert>      
         <v-card style="width:800px;height: 570px;">
 
             <v-card-title>Purchase Details of {{ purchaseinfo.id }}
@@ -14,13 +15,15 @@
                     <table>
                         <tr>
                             <td><v-label>Item</v-label></td>
-                            <td><v-label>Qty</v-label></td>
+                            <td><v-label>Quantity</v-label></td>
                             <td><v-label>Rate</v-label></td>                        
                         </tr>
                         <tr>
-                            <td><v-text-field v-model="defaultItem.item_name" outlined dense @keydown.enter="selectElement('qtyRef')" ref="firstText"></v-text-field></td>
-                            <td><v-text-field v-model="defaultItem.qty" outlined dense @keydown.enter="selectElement('rateRef')"  ref="qtyRef"></v-text-field></td>
-                            <td><v-text-field v-model="defaultItem.rate" outlined dense @keydown.enter="pushNew()" ref="rateRef"></v-text-field></td>
+                            <td>
+                              <v-autocomplete v-model="selectItem" :items="getItemNames" item-text="itemName" item-value="itemId" ref="firstText" dense single-line  hide-details></v-autocomplete>
+                            </td>
+                            <td><v-text-field v-model="defaultItem.quantity" outlined dense @keydown.enter="selectElement('rateRef')"  ref="quantityRef"></v-text-field></td>
+                            <td><v-text-field v-model="defaultItem.rate" outlined dense @keydown.enter="pushNew()" ref="rateRef"></v-text-field></td> 
                         </tr>
                     </table>
                 </div>
@@ -30,15 +33,22 @@
                 <v-data-table :headers="headers" :loading="loadTable" loading-text="Data loading.." :items="purchasesArray" :search="search" class="elevation-1" fixed-header height="300px">
                     <v-divider inset></v-divider>
 
-                    <template v-slot:item.id="{ item }">
-                        <span>{{item.id}}</span>
+                    <template v-slot:item.rate="{ item }">
+                      <v-text-field v-if="item.id === editedItem.id" v-model="editedItem.rate" outlined dense></v-text-field>
+                        <span v-else>{{item.rate}}</span>
                     </template>
 
-                    <template v-slot:item.purchase_id="{ item }">
-                        <span>{{item.purchase_id}}</span>
+                    <template v-slot:item.quantity="{ item }">
+                      <v-text-field v-if="item.id === editedItem.id" v-model="editedItem.quantity" outlined dense></v-text-field>
+                        <span v-else>{{item.quantity}}</span>
                     </template>
 
-                    <template v-slot:item.amount="{ item }"> <span>{{item.qty * item.rate}}</span> </template>
+                    <template v-slot:item.itemName="{ item }">
+                      <v-autocomplete v-if="item.id === editedItem.id" v-model="editedItem" :items="getItemNames" item-text="itemName" item-value="itemId" ref="firstText" dense single-line  hide-details></v-autocomplete>
+                      <span v-else>{{item.itemName}}</span>
+                    </template>
+
+                    <template v-slot:item.amount="{ item }"> <span>{{item.quantity * item.rate}}</span> </template>
 
                     <template v-slot:item.actions="{ item }">
                         <div v-if="item.id === editedItem.id">
@@ -92,11 +102,15 @@ background-color: white;
 
 import purchaseDetailService from '../services/PurchaseDetailService'
 import moment from 'moment';
+import ItemService from '@/services/ItemService';
+import PurchaseDetailService from '../services/PurchaseDetailService';
 
 export default {
   name: 'PurchaseDetails',
   props: ['purchaseinfo'],
   data: () => ({
+    errorMessage:'',
+    showError:false,
     purchasesArray: [],
     dialog: false,
     loadTable: true,
@@ -122,12 +136,12 @@ export default {
     },
     {
       text: 'Purchase Id',
-      value: 'purchase_id',
+      value: 'purchaseId',
       sortable: false
     },
     {
       text: 'Item',
-      value: 'item_name',
+      value: 'itemName',
       sortable: false,
       width: '300px'
     },
@@ -138,7 +152,7 @@ export default {
     },    
     {
       text: 'Quantity',
-      value: 'qty',
+      value: 'quantity',
       sortable: false
     },
     {
@@ -150,13 +164,32 @@ export default {
     ],
     purchasesArray: [],
     search: '',
+    itemList:[],
+    item:{},
+    selectItem:null
   }),
   components: {
   },
-  async created(){   
+  async created(){
+    await this.initialize();
   },
-  mounted(){
+  async mounted(){
     console.log("Mounted hook...");
+    await this.LoadData();
+  },
+  computed:{
+    getItemNames(){
+
+      console.log("Get item names");
+      console.log(this.itemList);
+
+      return this.itemList.map(res => {
+        return {
+          itemId : res.id,
+          itemName: res.item_name
+        }
+      });
+    }
   },
   methods:{
 
@@ -167,6 +200,9 @@ export default {
       this.$refs["firstText"].focus();
       console.log("Purchases Array...");
       console.log(this.purchasesArray);
+    },err => {
+      this.errorMessage = err.message;
+      this.showError = true;
     });
   },
   selectElement(ref){
@@ -175,45 +211,78 @@ export default {
   closeDialog(){
         this.$emit('close');
   },
+  async initialize () {
+    await ItemService.GetAllItems().then(res => {
+        console.log("Response from ItemService.GetAllItems..");
+        console.log(res);
+        if (res && Array.isArray(res)) {
+            this.itemList = res;
+        } 
+        else {
+        console.error('Invalid response from ItemService.GetAllItems():', res);
+        }   
+      },err => {
+      this.errorMessage = err.message;
+      this.showError = true;
+    });
+  },
   editItem(item) {
     this.oldItem = item;
-    this.editedItem = JSON.parse(JSON.stringify(item));
+    console.log("Editing item..");
+    console.log(item);
+    console.log("Select item..");
+    console.log(this.selectItem);
+    this.editedItem = item;
     this.isEdited = true;
   },
-  deleteItem(item) {
+  async deleteItem(item) {
     const index = this.purchasesArray.indexOf(item);
-    confirm('Are you sure you want to delete this item?') && this.purchasesArray.splice(index, 1);
+    console.log(item);
+    if(confirm('Are you sure you want to delete this item?')){
+      await PurchaseDetailService.DeletePurchaseDetail(item).then(res=>{
+        this.purchasesArray.splice(index, 1);
+      },err => {
+        this.errorMessage = err.message + " - " + err.response.data;
+        this.showError = true;        
+      })
+    } 
   },
   resetDefaultItem(){
     this.defaultItem = {};
     this.defaultItem.purchaseDate = moment().format('yyyy-MM-DD');
     this.$refs["firstText"].focus();
   },
-  pushNew(){
+  async pushNew(){
     this.isEdited = false;
-    if(this.purchasesArray.length > 0)
-    {
-      this.max_id = 0;
-      this.purchasesArray.forEach(purchase => {
-        if(purchase.id > this.max_id) this.max_id = purchase.id;
-      });
-      this.defaultItem.id = this.max_id + 1;
-    }
-    else
-      this.defaultItem.id = 1;
-    this.defaultItem.purchase_id = this.purchaseinfo.id;
-    this.addNew();
+    this.defaultItem.purchaseid = this.purchaseinfo.id;
+    console.log("Trying to add new item");
+    console.log(this.selectItem);
+    this.defaultItem.itemId =  this.selectItem;
+    await this.addNew();
     this.isEdited = true;
-    this.save();
+    await this.save();
     this.resetDefaultItem();
   },
-  addNew() {
+  async addNew() {
     if(this.isEdited) return;
-    console.log("Adding new item");
-    this.purchasesArray.unshift(JSON.parse(JSON.stringify(this.defaultItem)));
-    this.editItem(this.defaultItem);
+
+    this.defaultItem.purchaseid = this.purchaseinfo.id;
+
+    await PurchaseDetailService.AddPurchaseDetail(this.defaultItem).then(response=>{
+      console.log("Result of AddPurchse Detail");
+      console.log(response);
+      this.defaultItem.id = response.id;
+      this.purchasesArray.unshift(JSON.parse(JSON.stringify(this.defaultItem)));
+      this.editItem(this.defaultItem);
+    },err=> {
+      this.errorMessage = err.message + " - " + err.response.data;
+      this.showError = true;
+    })
   },
-  save () {
+  async save () {
+
+    console.log("Editing item..");
+
     if(!this.isEdited) return;
 
     if(this.editedItem.id == -1 || this.editedItem.id == undefined)
@@ -228,6 +297,15 @@ export default {
       if(index != -1)
         Object.assign(this.purchasesArray[index],this.editedItem);
     }
+
+    console.log("Saving item..");
+    console.log(this.editedItem);
+
+    await PurchaseDetailService.SavePurchaseDetail(this.editedItem).then(response => {
+    },err => {
+      this.errorMessage = err.message + " - " + err.response.data;
+      this.showError = true;      
+    })
 
     this.isEdited = false;
     this.close()

@@ -1,5 +1,6 @@
 <template>
     <div id="app">
+      <v-alert v-model="showError" border="top" color="red" dense dismissible elevation="13" outlined prominent shaped text type="error"> {{ errorMessage }} </v-alert>
         <v-card style="width:800px;height: 570px;">
 
             <v-card>
@@ -185,7 +186,10 @@ methods: {
     await this.addNew().then(response=> {
       this.resetDefaultItem();
       this.$refs["itemName"].focus();   
-    }); 
+    },err => {
+        this.errorMessage = err.message;
+        this.showError = true;
+      }); 
   },
   async addNew() {
     if(this.isEdited) return;
@@ -194,9 +198,10 @@ methods: {
       this.itemsArray.unshift(JSON.parse(JSON.stringify(response)));
       this.editItem(response);
       this.isEdited = false;
-    },error=> {
-      
-    })
+    },err => {
+        this.errorMessage = err.message;
+        this.showError = true;
+      })
   },
   async save () {
     if(!this.isEdited) return;
@@ -219,9 +224,10 @@ methods: {
 
     await VendorService.SaveVendor(this.editedItem).then(response => {
       console.log("Item updated..!");
-    },error=> {
-      console.log(error);
-    });
+    },err => {
+        this.errorMessage = err.message;
+        this.showError = true;
+      });
 
     this.isEdited = false;
     this.close()
