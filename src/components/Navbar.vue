@@ -47,7 +47,7 @@
     data: () => ({
        drawer: true,
        links :[
-           {icon: 'dashboard', text:'Purchases', route: '/'},
+           {icon: 'dashboard', text:'Purchases', route: '/PurchaseScreen'},
            {icon: 'shop_two', text:'Masters', route: '/masterdetails'},
            {icon: 'folder', text:'Sales', route: '/sales'},
            {icon: 'person', text:'Reports', route: '/reports'}

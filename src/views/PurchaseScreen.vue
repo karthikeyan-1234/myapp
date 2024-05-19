@@ -3,7 +3,6 @@
         <v-alert v-model="showError" border="top" color="red" dense dismissible elevation="13" outlined prominent shaped text type="error"> {{ errorMessage }} </v-alert>
 
         <v-app id="inspire">
-
             <v-card>
                 <div>
                     <table>
@@ -11,6 +10,19 @@
                             <td><v-label>Item</v-label></td>
                             <td><v-label>Rate</v-label></td>                        
                             <td><v-label>Quantity</v-label></td>
+
+                            <td><v-btn @click="createNewPurchase()">Add Purchase</v-btn></td>
+                            <td>&nbsp;</td>
+                            <td><b>  Vendor  </b></td>
+                            <td><v-autocomplete class="centered-text" :items="getVendorNames" v-model="vendor.id" item-text="vendorName"  item-value="vendorId" ref="vendorRef"></v-autocomplete></td>
+
+                            <td><b>  Purchase  </b></td>
+                            <td><v-text-field class="centered-text" v-model="purchaseId" @change="loadDetails(purchaseId)"></v-text-field></td>
+
+                            <td><b>  Date  </b></td>
+                            <td><v-text-field class="centered-text" v-model="purchaseDate" readonly></v-text-field></td>
+
+
                         </tr>
                         <tr>
                             <td><v-autocomplete :items="getItemNames" v-model="newItem.id" item-text="itemName"  item-value="itemId" ref="itemRef" @change="getRate(newItem.id)"></v-autocomplete></td>
@@ -67,6 +79,15 @@
 </template>
 
 <style>
+
+.centered-text .v-input__control {
+  text-align: center;
+}
+
+.centered-text input {
+  text-align: center;
+}
+
 .v-data-table__wrapper {
 max-height: none !important;
 }
@@ -84,13 +105,16 @@ background-color: white;
 <script>
 import DatePicker from "../components/DatePicker.vue";
 import purchaseDetailService from '../services/PurchaseDetailService'
+import purchaseService from '../services/PurchaseService'
+
 import ItemService from '@/services/ItemService';
+import VendorService from '@/services/VendorService';
 import moment from 'moment';
 
 export default{
     name: 'PurchaseScreen',
     components:{
-        DatePicker
+        DatePicker,
     },
     data:() =>({
         showError:false,
@@ -130,23 +154,40 @@ export default{
         ],
         purchasesList:[],
         newItem:{},
+        vendor:{},
         editedItem:{},
         selectedDropDownItem:{},
         selectedDropDownItem2:{},
         dataLoading: true,
-        purchaseId:13,
-        tableTotal:0.00
+        purchaseId:0,
+        tableTotal:0.00,
+        vendorList:[],
+        purchaseDate:new Date()
     }),
     async created(){
         await this.getAllItems();
         this.dataLoading = false;
         await this.loadDetails(this.purchaseId);
+        await this.getAllVendors();
         this.$refs["itemRef"].focus();
 
     },
     async mounted(){
     },
     computed:{
+        getVendorNames(){
+            if (this.dataLoading || !this.vendorList) {
+                 return []; // Return empty array if data is still loading or itemList is not yet populated
+            }
+
+            return this.vendorList.map(res => {
+                return {
+                    vendorId : res.id,
+                    vendorName: res.vendor_name
+                }
+            });
+
+        },
         getItemNames(){
 
             if (this.dataLoading || !this.itemList) {
@@ -165,6 +206,23 @@ export default{
 
         //General operations
 
+        async createNewPurchase(){
+            const currentDate = new Date();
+            const newPR = {
+                purchaseDate: currentDate,
+                vendorId: this.vendor.id
+            }
+            console.log(newPR);
+            await purchaseService.AddPurchase(newPR).then(res => {
+                console.log(res);
+                this.purchaseId = res.id;
+                this.purchasesList = [];
+            },
+            err => {
+                this.errorMessage = err.message;
+                this.showError = true;
+            });
+        },
 
         async getRate(itemId)
         {
@@ -174,6 +232,20 @@ export default{
             this.newItem.quantity = '';
             this.newItem.itemId = itemId;
             this.$refs["quantityRef"].focus();
+        },
+
+        async getAllVendors(){
+            await VendorService.GetAllVendors().then(res => {
+                if (res && Array.isArray(res)) {
+                    this.vendorList = res;
+                } 
+                else {
+                    console.error('Invalid response from VendorService.GetAllItems():', res);
+                }   
+            },err => {
+                this.errorMessage = err.message;
+                this.showError = true;
+                });
         },
 
         updateItem(selectedDropDownItem,entryId){
@@ -238,12 +310,24 @@ export default{
         //Get Purchase with detail
 
         async loadDetails(id){
+
+            await purchaseService.GetPurchaseById(id).then(response=>{
+                console.log("Load Purchase Details..!!");
+                console.log(response);
+            },err=>{
+                this.errorMessage = err.message;
+                this.showError = true;                
+            })
+
             await purchaseDetailService.GetPurchaseDetailById(id).then(response => {
                 this.purchasesList = response;
                 this.tableTotal = 0;
                 for(let i=0;i<this.purchasesList.length;i++){
                     this.tableTotal = this.tableTotal + (this.purchasesList[i].rate * this.purchasesList[i].quantity);
                 }
+            },err => {
+                this.errorMessage = err.message;
+                this.showError = true;
             })
         },
 
@@ -251,10 +335,12 @@ export default{
 
         async addItem(item)
         {
-
+            item.purchaseId = this.purchaseId;
             await purchaseDetailService.AddPurchaseDetail(item).then(response => {
-            },error =>{
-                console.log(error);
+            },err =>{
+                console.log(err);
+                this.errorMessage = err.message;
+                this.showError = true;
                 return;
             })
 
@@ -266,9 +352,12 @@ export default{
 
         async deleteItem(item)
         {
+            item.purchaseId = this.purchaseId;
             await purchaseDetailService.DeletePurchaseDetail(item).then(response => {
-            },error =>{
-                console.log(error);
+            },err =>{
+                console.log(err);
+                this.errorMessage = err.message;
+                this.showError = true;                
                 return;
             })
 
@@ -279,10 +368,13 @@ export default{
 
         async saveItem(item)
         {
+            item.purchaseId = this.purchaseId;
             await purchaseDetailService.SavePurchaseDetail(item).then(response => {
-            },error =>{
-                console.log(error);
+            },err =>{
+                console.log(err);
                 this.closeEditing();
+                this.errorMessage = err.message;
+                this.showError = true;                
                 return;
             })
            this.closeEditing();

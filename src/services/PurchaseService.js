@@ -47,6 +47,15 @@ async DeletePurchase(item)
   async SavePurchases(PurchasesArray){
   }
 
+  async GetPurchaseById(id)
+  {
+    return await axios.get(`https://localhost:7195/api/Purchase/GetByPurchaseId?id=${id}`).then(response => {
+      return response.data;
+    },error => {
+      console.log(error);
+    })    
+  }
+
   async GetPurchaseDetails(id){
     return await axios.get('https://localhost:7195/api/Purchase/GetAllPurchases').then(response => {
       return response.data;

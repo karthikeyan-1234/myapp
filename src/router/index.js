@@ -13,14 +13,9 @@ Vue.use(VueRouter)
 
 const routes = [
   {
-    path: '/',
-    name: 'purchases',
-    component: Purchases
-  },
-  {
-    path: '/purchasedetails',
-    name: 'purchasedetails',
-    component: PurchaseDetails
+    path: '/purchases',
+    name: 'PurchaseScreen',
+    component: PurchaseScreen
   },
   {
     path: '/sales',
