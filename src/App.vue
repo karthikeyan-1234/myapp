@@ -12,9 +12,16 @@ import Navbar from './components/Navbar.vue';
 import Navbar from './components/Navbar';
 export default{
   name: 'App',
+  watch: {
+        $route: {
+            immediate: true,
+            handler(to, from) {
+                document.title = 'Business Manager';
+            }
+        },
+    },
   components:{
     Navbar
   }
-
 }
 </script>

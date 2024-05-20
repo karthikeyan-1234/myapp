@@ -170,7 +170,6 @@ export default{
         await this.loadDetails(this.purchaseId);
         await this.getAllVendors();
         this.$refs["itemRef"].focus();
-
     },
     async mounted(){
     },
